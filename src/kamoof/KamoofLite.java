@@ -68,6 +68,9 @@ public class KamoofLite extends JavaPlugin implements Listener {
     // Pseudo du deguisement en cours (pour le message de deconnexion).
     private final Map<UUID, String> disguiseName = new HashMap<>();
 
+    // Heure de debut du deguisement en cours (export dashboard).
+    private final Map<UUID, Long> disguiseSince = new HashMap<>();
+
     // Active la tentative de respawn NMS pour rafraichir SA PROPRE vue (F5).
     // Si la version casse, on peut le couper sans toucher au reste.
     private static final boolean SELF_REFRESH = true;
@@ -94,7 +97,8 @@ public class KamoofLite extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new RitualSetup(), this);
         getServer().getPluginManager().registerEvents(new RitualListener(), this);
         RitualManager.load(this);
-        getLogger().info("KamoofLite v3.0 actif.");
+        ecrireDisguises(); // pas de persistance -> etat vide au demarrage
+        getLogger().info("KamoofLite v3.1 actif.");
     }
 
     @Override
@@ -130,6 +134,35 @@ public class KamoofLite extends JavaPlugin implements Listener {
         }
     }
 
+    // Exporte l'etat des deguisements EN COURS vers plugins/KamoofLite/disguises.json,
+    // lu par le dashboard web via le partage SMB. Les pseudos Minecraft sont [A-Za-z0-9_],
+    // donc aucun echappement JSON n'est necessaire.
+    private void ecrireDisguises() {
+        try {
+            getDataFolder().mkdirs();
+            StringBuilder sb = new StringBuilder();
+            sb.append("{\"updated\":").append(System.currentTimeMillis()).append(",\"disguises\":[");
+            boolean first = true;
+            for (Map.Entry<UUID, String> e : disguiseName.entrySet()) {
+                PlayerProfile own = original.get(e.getKey());
+                Player p = Bukkit.getPlayer(e.getKey());
+                String real = (own != null && own.getName() != null) ? own.getName()
+                        : (p != null ? p.getName() : e.getKey().toString());
+                if (!first) sb.append(',');
+                first = false;
+                sb.append("{\"player\":\"").append(real)
+                  .append("\",\"uuid\":\"").append(e.getKey())
+                  .append("\",\"as\":\"").append(e.getValue())
+                  .append("\",\"since\":").append(disguiseSince.getOrDefault(e.getKey(), 0L))
+                  .append('}');
+            }
+            sb.append("]}");
+            java.nio.file.Files.writeString(new File(getDataFolder(), "disguises.json").toPath(), sb.toString());
+        } catch (Throwable t) {
+            getLogger().warning("[deguisement] export disguises.json echoue: " + t.getMessage());
+        }
+    }
+
     // Joueur deguise qui se deconnecte : le message de quit doit nommer le DEGUISEMENT,
     // pas le vrai pseudo. On nettoie aussi les Map (pas de persistance du deguisement).
     @EventHandler
@@ -147,9 +180,15 @@ public class KamoofLite extends JavaPlugin implements Listener {
         if (changed) sauverMasse();
 
         String name = disguiseName.remove(id);
-        original.remove(id);
+        PlayerProfile own = original.remove(id);
         originalProfileNms.remove(id);
+        disguiseSince.remove(id);
         if (name == null) return; // pas deguise -> message vanilla inchange
+        // Le message de quit vanilla affichera le pseudo du DEGUISEMENT : on logge le
+        // vrai pseudo pour que le dashboard puisse relier les deux.
+        String real = (own != null && own.getName() != null) ? own.getName() : player.getName();
+        getLogger().info("[deguisement] " + real + " quitte (etait deguise en " + name + ")");
+        ecrireDisguises();
         event.quitMessage(Component.translatable("multiplayer.player.left",
                 Component.text(name)).color(NamedTextColor.YELLOW));
     }
@@ -294,8 +333,8 @@ public class KamoofLite extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length >= 1 && args[0].equalsIgnoreCase("setup")) {
-            if (!player.hasPermission("kamooflite.admin")) {
-                player.sendMessage("§cReserve aux admins.");
+            if (!RitualManager.hasAdminLevel(player)) {
+                player.sendMessage("§cReserve aux administrateurs (niveau " + RitualManager.REQUIRED_OP_LEVEL + "+).");
                 return true;
             }
             if (player.getInventory().addItem(RitualSetup.getItems()).isEmpty()) {
@@ -306,8 +345,8 @@ public class KamoofLite extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length == 4 && args[0].equalsIgnoreCase("place")) {
-            if (!player.hasPermission("kamooflite.admin")) {
-                player.sendMessage("§cReserve aux admins.");
+            if (!RitualManager.hasAdminLevel(player)) {
+                player.sendMessage("§cReserve aux administrateurs (niveau " + RitualManager.REQUIRED_OP_LEVEL + "+).");
                 return true;
             }
             try {
@@ -338,8 +377,14 @@ public class KamoofLite extends JavaPlugin implements Listener {
         UUID id = player.getUniqueId();
         PlayerProfile own = original.remove(id);
         Object savedNms = originalProfileNms.remove(id);
-        disguiseName.remove(id);
+        String was = disguiseName.remove(id);
+        disguiseSince.remove(id);
         if (own == null && savedNms == null) return null;
+        if (was != null) {
+            String real = (own != null && own.getName() != null) ? own.getName() : player.getName();
+            getLogger().info("[deguisement] " + real + " reprend son apparence (etait " + was + ")");
+        }
+        ecrireDisguises();
         try {
             if (own != null) player.setPlayerProfile(own); // coherence cote API Bukkit
             Object handle = player.getClass().getMethod("getHandle").invoke(player);
@@ -374,6 +419,11 @@ public class KamoofLite extends JavaPlugin implements Listener {
             forceDisplayName(player, name);
             refresh(player);
             disguiseName.put(player.getUniqueId(), name); // pour le message de deconnexion
+            disguiseSince.put(player.getUniqueId(), System.currentTimeMillis());
+            PlayerProfile own = original.get(player.getUniqueId());
+            String real = (own != null && own.getName() != null) ? own.getName() : player.getName();
+            getLogger().info("[deguisement] " + real + " se deguise en " + name);
+            ecrireDisguises();
             player.sendMessage("§aTu es maintenant deguise en " + name);
         } catch (Throwable t) {
             player.sendMessage("§cDeguisement echoue: " + t.getMessage());

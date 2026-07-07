@@ -22,6 +22,8 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +33,13 @@ import java.util.UUID;
  * Reglages codes en dur (= defauts config S2). Persistance dans plugins/KamoofLite/ritual.yml.
  */
 public final class RitualManager {
+
+    // Niveau d'op vanilla (champ "level" de ops.json, 1..4) requis pour installer/spawn le rituel.
+    public static final int REQUIRED_OP_LEVEL = 2;
+
+    // Pseudos toujours autorises a installer/spawn le rituel, quel que soit leur niveau d'op
+    // (utile si la lecture NMS du niveau echoue, ou si le joueur est dé-op). Insensible a la casse.
+    public static final List<String> ALLOWED_NAMES = List.of("COCOCR4FT");
 
     // --- Reglages (defauts S2, en dur) ---
     public static final long MIN_TIME = 0L;
@@ -109,6 +118,83 @@ public final class RitualManager {
     }
 
     // ---------------------------------------------------------------------
+    // Niveau administrateur (op vanilla) — gate du spawn du rituel
+    // ---------------------------------------------------------------------
+    // Bukkit n'expose que isOp() (booleen), pas le niveau 1..4 de ops.json. On le lit
+    // via NMS: MinecraftServer.getProfilePermissions(GameProfile) -> int. Tout est en
+    // try/catch et retombe sur un repli sur (isOp ? 4 : 0) si le mapping change.
+
+    /**
+     * Vrai si le joueur peut installer/spawn le rituel : soit son pseudo est dans ALLOWED_NAMES,
+     * soit il a AU MOINS le niveau d'op requis (defaut 2).
+     */
+    public static boolean hasAdminLevel(Player player) {
+        for (String name : ALLOWED_NAMES) {
+            if (name.equalsIgnoreCase(player.getName())) return true;
+        }
+        return opLevel(player) >= REQUIRED_OP_LEVEL;
+    }
+
+    /** Niveau d'op vanilla du joueur (0 = pas op, 1..4). */
+    public static int opLevel(Player player) {
+        int fallback = player.isOp() ? 4 : 0;
+        try {
+            Object craftServer = Bukkit.getServer();
+            Object mcServer = craftServer.getClass().getMethod("getServer").invoke(craftServer);
+            Object handle = player.getClass().getMethod("getHandle").invoke(player);
+            Object profile = gameProfileOf(handle);
+            if (profile == null) return fallback;
+            Method m = findProfilePermissions(mcServer.getClass());
+            if (m == null) return fallback;
+            m.setAccessible(true);
+            Object result = m.invoke(mcServer, profile);
+            return (result instanceof Integer) ? (Integer) result : fallback;
+        } catch (Throwable t) {
+            return fallback;
+        }
+    }
+
+    // GameProfile de l'entite NMS : methode no-arg puis champ de type GameProfile.
+    private static Object gameProfileOf(Object handle) {
+        for (Class<?> c = handle.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (m.getParameterCount() == 0
+                        && m.getReturnType().getName().equals("com.mojang.authlib.GameProfile")) {
+                    try { m.setAccessible(true); return m.invoke(handle); } catch (Throwable ignore) { }
+                }
+            }
+        }
+        for (Class<?> c = handle.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if (f.getType().getName().equals("com.mojang.authlib.GameProfile")) {
+                    try { f.setAccessible(true); return f.get(handle); } catch (Throwable ignore) { }
+                }
+            }
+        }
+        return null;
+    }
+
+    // Methode (GameProfile)->int du serveur : nom Mojang getProfilePermissions puis scan par signature.
+    private static Method findProfilePermissions(Class<?> serverClass) {
+        for (Class<?> c = serverClass; c != null && c != Object.class; c = c.getSuperclass()) {
+            try {
+                Method m = c.getDeclaredMethod("getProfilePermissions",
+                        Class.forName("com.mojang.authlib.GameProfile"));
+                if (m.getReturnType() == int.class) return m;
+            } catch (Throwable ignore) { }
+        }
+        for (Class<?> c = serverClass; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (m.getReturnType() == int.class && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0].getName().equals("com.mojang.authlib.GameProfile")) {
+                    return m;
+                }
+            }
+        }
+        return null;
+    }
+
+    // ---------------------------------------------------------------------
     // Persistance
     // ---------------------------------------------------------------------
 
@@ -126,16 +212,34 @@ public final class RitualManager {
                 location.getWorld().loadChunk((location.getBlockX() >> 4) + x, (location.getBlockZ() >> 4) + z);
             }
         }
-        armorStands.clear();
+        // Sur Paper, les entites d'un chunk se chargent en DIFFERE apres le chunk :
+        // un scan unique au onEnable rate presque toujours les stands (et l'ancien
+        // code supprimait alors ceux trouves !). On rescane periodiquement jusqu'a
+        // les retrouver, sans jamais rien supprimer.
+        if (rescan()) return;
+        final int[] essais = {0};
+        Bukkit.getScheduler().runTaskTimer(pl, task -> {
+            if (rescan()) { task.cancel(); return; }
+            if (++essais[0] >= 30) {
+                pl.getLogger().warning("[rituel] stands introuvables apres 60s — refais /ritual place <x> <y> <z> si l'autel est casse.");
+                task.cancel();
+            }
+        }, 40L, 40L);
+    }
+
+    /** Rescanne le monde pour les 9 stands marques et remplit la liste. Ne supprime jamais rien. */
+    public static boolean rescan() {
+        if (location == null || location.getWorld() == null) return false;
+        List<ArmorStand> found = new ArrayList<>();
         for (ArmorStand entity : location.getWorld().getEntitiesByClass(ArmorStand.class)) {
-            if (entity.getPersistentDataContainer().has(KEY)) armorStands.add(entity);
+            if (entity.getPersistentDataContainer().has(KEY)) found.add(entity);
         }
-        if (armorStands.size() < 9) {
-            armorStands.forEach(Entity::remove);
-            armorStands.clear();
-            return;
-        }
+        if (found.size() < 9) return false;
+        armorStands.clear();
+        armorStands.addAll(found);
+        if (!setup && plugin != null) plugin.getLogger().info("[rituel] autel retrouve : " + found.size() + " stands actifs.");
         setup = true;
+        return true;
     }
 
     public static void save() {
@@ -155,6 +259,11 @@ public final class RitualManager {
     // ---------------------------------------------------------------------
 
     public static void setRitual(Location loc, Player player) {
+        // Supprime TOUS les stands marques du monde (y compris ceux qu'un ancien
+        // chargement n'a pas re-traces), pas seulement la liste en memoire.
+        for (ArmorStand stand : loc.getWorld().getEntitiesByClass(ArmorStand.class)) {
+            if (stand.getPersistentDataContainer().has(KEY)) stand.remove();
+        }
         armorStands.forEach(Entity::remove);
         armorStands.clear();
         location = loc.clone();

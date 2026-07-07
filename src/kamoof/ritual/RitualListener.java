@@ -49,7 +49,16 @@ public final class RitualListener implements Listener {
         for (ArmorStand stand : armorStands) {
             if (stand.getEntityId() == entity.getEntityId()) { contains = true; break; }
         }
-        if (!contains) return;
+        if (!contains) {
+            // Stand marque mais absent de la liste (entites chargees apres le
+            // onEnable, ou liste perdue) -> on retente un scan complet.
+            if (!entity.getPersistentDataContainer().has(RitualManager.KEY)) return;
+            if (!RitualManager.rescan()) return;
+            for (ArmorStand stand : armorStands) {
+                if (stand.getEntityId() == entity.getEntityId()) { contains = true; break; }
+            }
+            if (!contains) return;
+        }
 
         ItemStack playerItem = event.getPlayerItem();
         if (playerItem.getType() != Material.PLAYER_HEAD) {

@@ -71,7 +71,10 @@ public final class RitualSetup implements Listener {
         if (item.getType() != Material.NETHER_WART_BLOCK || !isSetupItem(item)) return;
         event.setCancelled(true);
         Player player = event.getPlayer();
-        if (!player.hasPermission("kamooflite.admin")) return;
+        if (!RitualManager.hasAdminLevel(player)) {
+            player.sendMessage("§cReserve aux administrateurs (niveau " + RitualManager.REQUIRED_OP_LEVEL + "+).");
+            return;
+        }
         RitualManager.setRitual(event.getBlockPlaced().getLocation(), player);
     }
 
@@ -84,7 +87,10 @@ public final class RitualSetup implements Listener {
         if (!isSetupItem(item)) return;
         event.setCancelled(true);
         Player player = event.getPlayer();
-        if (!player.hasPermission("kamooflite.admin")) return;
+        if (!RitualManager.hasAdminLevel(player)) {
+            player.sendMessage("§cReserve aux administrateurs (niveau " + RitualManager.REQUIRED_OP_LEVEL + "+).");
+            return;
+        }
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
 
         Block clicked = event.getClickedBlock();
