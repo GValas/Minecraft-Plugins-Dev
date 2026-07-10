@@ -1,5 +1,5 @@
 name: KamoofLite
-version: '3.1'
+version: '3.4'
 main: kamoof.KamoofLite
 api-version: '1.21'
 author: Claude
@@ -11,6 +11,9 @@ commands:
   ritual:
     description: Rituel des tetes (setup admin + acceptation de pacte).
     usage: /ritual <setup|place x y z|pacte 1|2>
+  tpspawn:
+    description: Se teleporter au spawn du serveur.
+    usage: /tpspawn
 permissions:
   kamooflite.admin:
     description: Administrateur KamoofLite (setup du rituel).

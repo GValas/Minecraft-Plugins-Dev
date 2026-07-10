@@ -4,6 +4,7 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRule;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -26,6 +27,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -98,7 +100,25 @@ public class KamoofLite extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new RitualListener(), this);
         RitualManager.load(this);
         ecrireDisguises(); // pas de persistance -> etat vide au demarrage
-        getLogger().info("KamoofLite v3.1 actif.");
+        // La locator bar vanilla (1.21.6+) revele la position des joueurs en bas
+        // de l'ecran -> incompatible avec les deguisements, on la coupe partout.
+        for (World w : Bukkit.getWorlds()) {
+            desactiverLocatorBar(w);
+        }
+        getLogger().info("KamoofLite v3.4 actif.");
+    }
+
+    // Coupe aussi la locator bar dans les mondes charges apres le demarrage.
+    @EventHandler
+    public void onWorldLoad(WorldLoadEvent event) {
+        desactiverLocatorBar(event.getWorld());
+    }
+
+    private void desactiverLocatorBar(World w) {
+        if (Boolean.TRUE.equals(w.getGameRuleValue(GameRule.LOCATOR_BAR))) {
+            w.setGameRule(GameRule.LOCATOR_BAR, false);
+            getLogger().info("[locator] barre de localisation desactivee dans " + w.getName() + ".");
+        }
     }
 
     @Override
@@ -293,6 +313,19 @@ public class KamoofLite extends JavaPlugin implements Listener {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (command.getName().equalsIgnoreCase("ritual")) {
             return onRitualCommand(sender, args);
+        }
+        // /tpspawn — teleporte au spawn, ouvert a tous (aucune permission requise)
+        if (command.getName().equalsIgnoreCase("tpspawn")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("Commande reservee aux joueurs.");
+                return true;
+            }
+            World overworld = Bukkit.getWorlds().get(0);
+            // centre du bloc -45 70 -110
+            player.teleport(new Location(overworld, -44.5, 70.0, -109.5,
+                    player.getLocation().getYaw(), player.getLocation().getPitch()));
+            player.sendMessage("§aTeleporte au spawn.");
+            return true;
         }
         // /undisguise
         if (!(sender instanceof Player player)) {
