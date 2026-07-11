@@ -314,6 +314,9 @@ public class KamoofLite extends JavaPlugin implements Listener {
         if (command.getName().equalsIgnoreCase("ritual")) {
             return onRitualCommand(sender, args);
         }
+        if (command.getName().equalsIgnoreCase("portal")) {
+            return onPortalCommand(sender, args);
+        }
         // /tpspawn — teleporte au spawn, ouvert a tous (aucune permission requise)
         if (command.getName().equalsIgnoreCase("tpspawn")) {
             if (!(sender instanceof Player player)) {
@@ -400,6 +403,34 @@ public class KamoofLite extends JavaPlugin implements Listener {
         }
         player.sendMessage("§7/ritual setup §8— items d'installation (admin)");
         player.sendMessage("§7/ritual place <x> <y> <z> §8— construit l'autel centre sur ces coords (admin)");
+        return true;
+    }
+
+    // /portal spawn <x> <y> <z> (admin) — pose le grand portail du Nether decore,
+    // oriente parallele a la face de l'autel la plus proche (sinon face au joueur).
+    private boolean onPortalCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("Commande reservee aux joueurs.");
+            return true;
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("spawn")) {
+            if (!RitualManager.hasAdminLevel(player)) {
+                player.sendMessage("§cReserve aux administrateurs (niveau " + RitualManager.REQUIRED_OP_LEVEL + "+).");
+                return true;
+            }
+            try {
+                double x = Double.parseDouble(args[1]);
+                double y = Double.parseDouble(args[2]);
+                double z = Double.parseDouble(args[3]);
+                if (!kamoof.portal.PortalPlacer.spawn(player, x, y, z)) {
+                    player.sendMessage("§cStructure portal.nbt introuvable.");
+                }
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cCoordonnees invalides. Usage: /portal spawn <x> <y> <z>");
+            }
+            return true;
+        }
+        player.sendMessage("§7/portal spawn <x> <y> <z> §8— pose le portail du Nether, y = niveau du sol (admin)");
         return true;
     }
 

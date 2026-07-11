@@ -49,6 +49,7 @@ if ($LASTEXITCODE -ne 0) { throw "Echec compilation (code $LASTEXITCODE)" }
 Copy-Item (Join-Path $SrcDir 'plugin.yml') (Join-Path $BuildDir 'plugin.yml') -Force
 Copy-Item (Join-Path $SrcDir 'ritual.nbt') (Join-Path $BuildDir 'ritual.nbt') -Force
 Copy-Item (Join-Path $SrcDir 'ritualbase.nbt') (Join-Path $BuildDir 'ritualbase.nbt') -Force
+Copy-Item (Join-Path $SrcDir 'portal.nbt') (Join-Path $BuildDir 'portal.nbt') -Force
 
 # --- Backup de l'ancien jar ---
 if (Test-Path $OutJar) {
@@ -59,7 +60,7 @@ if (Test-Path $OutJar) {
 
 # --- Packaging ---
 Write-Host "Packaging du jar..."
-& $Jar cf $OutJar -C $BuildDir plugin.yml -C $BuildDir ritual.nbt -C $BuildDir ritualbase.nbt -C $BuildDir kamoof
+& $Jar cf $OutJar -C $BuildDir plugin.yml -C $BuildDir ritual.nbt -C $BuildDir ritualbase.nbt -C $BuildDir portal.nbt -C $BuildDir kamoof
 if ($LASTEXITCODE -ne 0) { throw "Echec jar (code $LASTEXITCODE)" }
 
 Write-Host "OK -> $OutJar"

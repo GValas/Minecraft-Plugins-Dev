@@ -1,5 +1,5 @@
 name: KamoofLite
-version: '3.4'
+version: '3.5'
 main: kamoof.KamoofLite
 api-version: '1.21'
 author: Claude
@@ -14,6 +14,9 @@ commands:
   tpspawn:
     description: Se teleporter au spawn du serveur.
     usage: /tpspawn
+  portal:
+    description: Pose le grand portail du Nether decore, oriente vers l'autel du rituel.
+    usage: /portal spawn <x> <y> <z>
 permissions:
   kamooflite.admin:
     description: Administrateur KamoofLite (setup du rituel).

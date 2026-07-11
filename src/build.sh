@@ -37,6 +37,7 @@ find "$SRC_DIR/kamoof" -name '*.java' -print0 | xargs -0 javac -encoding UTF-8 -
 cp "$SRC_DIR/plugin.yml" "$BUILD_DIR/plugin.yml"
 cp "$SRC_DIR/ritual.nbt" "$BUILD_DIR/ritual.nbt"
 cp "$SRC_DIR/ritualbase.nbt" "$BUILD_DIR/ritualbase.nbt"
+cp "$SRC_DIR/portal.nbt" "$BUILD_DIR/portal.nbt"
 
 # Backup de l'ancien jar
 mkdir -p "$PLUGINS_DIR"
@@ -46,6 +47,6 @@ if [ -f "$OUT_JAR" ]; then
 fi
 
 # Packaging
-jar cf "$OUT_JAR" -C "$BUILD_DIR" plugin.yml -C "$BUILD_DIR" ritual.nbt -C "$BUILD_DIR" ritualbase.nbt -C "$BUILD_DIR" kamoof
+jar cf "$OUT_JAR" -C "$BUILD_DIR" plugin.yml -C "$BUILD_DIR" ritual.nbt -C "$BUILD_DIR" ritualbase.nbt -C "$BUILD_DIR" portal.nbt -C "$BUILD_DIR" kamoof
 echo "OK -> $OUT_JAR"
 echo "Tape 'restart' dans la console du serveur pour recharger."
