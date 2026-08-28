@@ -380,6 +380,18 @@ public class KamoofLite extends JavaPlugin implements Listener {
             }
             return true;
         }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("livre")) {
+            if (!RitualManager.hasAdminLevel(player)) {
+                player.sendMessage("§cReserve aux administrateurs (niveau " + RitualManager.REQUIRED_OP_LEVEL + "+).");
+                return true;
+            }
+            if (player.getInventory().addItem(RitualBook.getBook(RitualManager.addNewToken())).isEmpty()) {
+                player.sendMessage("§aLivre du Pacte Demonique recu.");
+            } else {
+                player.sendMessage("§cInventaire plein.");
+            }
+            return true;
+        }
         if (args.length == 4 && args[0].equalsIgnoreCase("place")) {
             if (!RitualManager.hasAdminLevel(player)) {
                 player.sendMessage("§cReserve aux administrateurs (niveau " + RitualManager.REQUIRED_OP_LEVEL + "+).");
@@ -403,6 +415,7 @@ public class KamoofLite extends JavaPlugin implements Listener {
         }
         player.sendMessage("§7/ritual setup §8— items d'installation (admin)");
         player.sendMessage("§7/ritual place <x> <y> <z> §8— construit l'autel centre sur ces coords (admin)");
+        player.sendMessage("§7/ritual livre §8— recois le livre du Pacte Demonique (admin)");
         return true;
     }
 
