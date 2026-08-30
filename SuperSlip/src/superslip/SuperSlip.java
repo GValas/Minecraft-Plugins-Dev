@@ -25,6 +25,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class SuperSlip extends JavaPlugin implements Listener {
 
     private NamespacedKey cleSlip;
+    // Interrupteur global (/slip on|off). Actif par defaut, non persiste : retour a "on" a chaque demarrage.
+    private boolean actif = true;
 
     @Override
     public void onEnable() {
@@ -55,6 +57,7 @@ public final class SuperSlip extends JavaPlugin implements Listener {
     }
 
     private void equiperSiTeteNue(Player joueur) {
+        if (!actif) return;
         ItemStack casque = joueur.getInventory().getHelmet();
         if (casque == null || casque.getType() == Material.AIR) {
             joueur.getInventory().setHelmet(creerSlip());
@@ -104,7 +107,28 @@ public final class SuperSlip extends JavaPlugin implements Listener {
             sender.sendMessage(Component.text("Seul un op peut slipper les autres.", NamedTextColor.RED));
             return true;
         }
+        if (args[0].equalsIgnoreCase("on")) {
+            actif = true;
+            getServer().getOnlinePlayers().forEach(this::equiperSiTeteNue);
+            sender.sendMessage(Component.text("SuperSlip active : slips redistribues.", NamedTextColor.GREEN));
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("off")) {
+            actif = false;
+            // On retire les slips en cours de port (uniquement les slips, jamais un vrai casque).
+            getServer().getOnlinePlayers().forEach(j -> {
+                if (estUnSlip(j.getInventory().getHelmet())) {
+                    j.getInventory().setHelmet(null);
+                }
+            });
+            sender.sendMessage(Component.text("SuperSlip desactive : slips retires.", NamedTextColor.YELLOW));
+            return true;
+        }
         if (args[0].equalsIgnoreCase("all")) {
+            if (!actif) {
+                sender.sendMessage(Component.text("SuperSlip est desactive (/slip on pour le reactiver).", NamedTextColor.RED));
+                return true;
+            }
             getServer().getOnlinePlayers().forEach(this::equiperSiTeteNue);
             sender.sendMessage(Component.text("Slips distribues a tous les joueurs a la tete nue.", NamedTextColor.GREEN));
             return true;
@@ -124,6 +148,8 @@ public final class SuperSlip extends JavaPlugin implements Listener {
         if (estUnSlip(casque)) {
             joueur.getInventory().setHelmet(null);
             joueur.sendMessage(Component.text("Slip retire. Quel dommage.", NamedTextColor.GRAY));
+        } else if (!actif) {
+            joueur.sendMessage(Component.text("SuperSlip est desactive (/slip on pour le reactiver).", NamedTextColor.RED));
         } else if (casque == null || casque.getType() == Material.AIR) {
             joueur.getInventory().setHelmet(creerSlip());
             joueur.sendMessage(Component.text("Slip enfile sur la tete !", NamedTextColor.WHITE));
