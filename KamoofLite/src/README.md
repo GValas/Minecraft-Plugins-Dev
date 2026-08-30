@@ -1,8 +1,9 @@
 # KamoofLite — source
 
 Plugin de déguisement pour le serveur Paper **HORUS** (`\\HORUS\appdata\minecraft`).
-Tout le projet de dev vit dans `\\HORUS\appdata\minecraft\dev\` ; le runtime du serveur
-(jar Paper, `libraries/`, `plugins/`) reste à la racine. Voir `dev/CLAUDE.md` pour le contexte.
+Le projet vit dans le monorepo `\\HORUS\appdata\minecraft\Minecraft-Plugins-Dev\` (sous-dossier
+`KamoofLite/`) ; le runtime du serveur (jar Paper, `libraries/`, `plugins/`) reste à la racine du
+serveur. Build : `build.ps1` / `build.sh` à la racine du monorepo.
 
 ## Ce que ça fait
 

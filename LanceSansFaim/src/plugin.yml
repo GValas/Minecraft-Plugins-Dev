@@ -1,0 +1,6 @@
+name: LanceSansFaim
+version: '1.0'
+main: lancesansfaim.LanceSansFaim
+api-version: '1.21'
+author: Claude
+description: Le lunge de la lance ne coute plus de faim ni de saturation.

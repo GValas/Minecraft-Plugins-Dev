@@ -1,11 +1,12 @@
 {
-  "java.project.sourcePaths": ["src"],
-  "java.project.outputPath": "src/build",
+  "java.project.sourcePaths": ["KamoofLite/src", "LanceSansFaim/src"],
+  "java.project.outputPath": "bin",
   "java.project.referencedLibraries": [
-    "../paper-26.1.2-72.jar",
+    "../paper-*.jar",
     "../libraries/**/*.jar"
   ],
   "files.exclude": {
-    "src/build": true
+    "**/build": true,
+    "bin": true
   }
 }

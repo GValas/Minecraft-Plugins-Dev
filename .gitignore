@@ -1,10 +1,10 @@
 # Artefacts de build (regénérés par build.ps1 / build.sh)
-src/build/
+build/
 *.class
 *.jar
 
-# ...sauf le binaire de release versionné (pour télécharger sans compiler)
-!dist/KamoofLite.jar
+# ...sauf les binaires de release versionnés (pour télécharger sans compiler)
+!*/dist/*.jar
 
 # Sauvegardes du jar serveur
 *.bak
