@@ -9,8 +9,15 @@ $ErrorActionPreference = 'Stop'
 
 # --- Chemins ---
 $RepoRoot = $PSScriptRoot
-$Javac    = 'C:\Users\valas\jdk25\jdk-25.0.3+9\bin\javac.exe'
-$Jar      = 'C:\Users\valas\jdk25\jdk-25.0.3+9\bin\jar.exe'
+# JDK 25 : chemin historique si present, sinon le javac du PATH
+$JdkBin = 'C:\Users\valas\jdk25\jdk-25.0.3+9\bin'
+if (-not (Test-Path (Join-Path $JdkBin 'javac.exe'))) {
+    $javacCmd = Get-Command javac -ErrorAction SilentlyContinue
+    if (-not $javacCmd) { throw "Aucun JDK trouve : ni $JdkBin, ni javac dans le PATH" }
+    $JdkBin = Split-Path $javacCmd.Source
+}
+$Javac    = Join-Path $JdkBin 'javac.exe'
+$Jar      = Join-Path $JdkBin 'jar.exe'
 
 # Racine du serveur Paper : on remonte jusqu'a trouver le paper-*.jar
 $ServerRoot = $RepoRoot

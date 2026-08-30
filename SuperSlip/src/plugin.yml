@@ -1,0 +1,10 @@
+name: SuperSlip
+version: '1.0'
+main: superslip.SuperSlip
+api-version: '1.21'
+author: Claude
+description: Ajoute un slip sur la tete des joueurs.
+commands:
+  slip:
+    description: Enfiler ou retirer le slip. /slip <joueur|all> (op) pour les autres.
+    usage: /slip [joueur|all]
