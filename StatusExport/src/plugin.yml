@@ -1,0 +1,6 @@
+name: StatusExport
+version: '1.0'
+main: statusexport.StatusExport
+api-version: '1.21'
+author: Claude
+description: Exporte l'etat du serveur (TPS, MSPT, joueurs, uptime) en JSON pour le dashboard web.
