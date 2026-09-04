@@ -1,0 +1,21 @@
+name: KamoofGuard
+version: '1.0'
+main: kguard.KamoofGuard
+api-version: '1.21'
+author: Claude
+description: Anticheat maison (mouvement, combat, blocs, divers) pour Paper 26.1.2.
+commands:
+  kguard:
+    description: Gestion de l'anticheat KamoofGuard
+    aliases: [kg, guard, anticheat]
+    usage: /kguard <info|alerts|verbose|vl|top|clear|exempt|reload>
+permissions:
+  kguard.alerts:
+    description: Recoit les alertes de l'anticheat
+    default: op
+  kguard.command:
+    description: Acces a la commande /kguard
+    default: op
+  kguard.bypass:
+    description: Exempte de tous les checks (a ne donner a personne en temps normal)
+    default: false
