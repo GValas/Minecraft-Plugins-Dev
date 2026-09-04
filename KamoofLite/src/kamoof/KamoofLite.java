@@ -9,11 +9,13 @@ import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.entity.Item;
@@ -50,6 +52,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -251,6 +254,44 @@ public class KamoofLite extends JavaPlugin implements Listener {
         }
     }
 
+    // Blocs consideres comme "interactifs" par Bukkit mais dont l'action vanilla exige un objet
+    // precis (cisailles, briquet, nourriture...) : avec une tete en main il ne se passerait rien,
+    // donc on y garde le deguisement.
+    private static final Set<Material> BLOCS_SANS_PRIORITE = EnumSet.of(
+            Material.PUMPKIN, Material.BEEHIVE, Material.BEE_NEST,
+            Material.TNT, Material.CAMPFIRE, Material.SOUL_CAMPFIRE,
+            Material.REDSTONE_ORE, Material.DEEPSLATE_REDSTONE_ORE);
+
+    // Accroupi + objet en main, le serveur saute volontairement l'action du bloc (c'est la regle
+    // vanilla qui permet de poser un bloc contre un coffre). Le drapeau est relu APRES l'appel de
+    // PlayerInteractEvent : on efface donc l'etat "accroupi" cote serveur le temps du click, puis
+    // on le restaure au tick suivant si le joueur appuie toujours sur la touche.
+    private void forcerInteractionAccroupi(Player player) {
+        if (!player.isSneaking()) return;
+        player.setSneaking(false);
+        Bukkit.getScheduler().runTask(this, () -> {
+            try {
+                if (player.isOnline() && player.getCurrentInput().isSneak()) player.setSneaking(true);
+            } catch (Throwable ignore) { }
+        });
+    }
+
+    // Vrai si un click droit sur ce bloc declenche une vraie action vanilla
+    // (coffre, four, porte, trappe, levier, bouton, etabli, enclume, lit, lutrin...).
+    private boolean estBlocActionnable(Block block) {
+        if (block == null) return false;
+        Material type = block.getType();
+        if (type == Material.AIR || BLOCS_SANS_PRIORITE.contains(type)) return false;
+        try {
+            if (type.isInteractable()) return true;
+        } catch (Throwable ignore) { }
+        try {
+            return block.getState(false) instanceof InventoryHolder;
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) return;
@@ -263,6 +304,17 @@ public class KamoofLite extends JavaPlugin implements Listener {
 
         PlayerProfile headProfile = meta.getPlayerProfile();
         if (headProfile == null || headProfile.getName() == null) return;
+
+        // Priorite a l'interaction avec le bloc vise (coffre, porte, levier, table de craft...) :
+        // debout ou accroupi, le click droit actionne le bloc au lieu de declencher le deguisement.
+        // On force l'usage du bloc (vanilla l'ignore quand le joueur est accroupi avec un objet en
+        // main) et on interdit l'usage de la tete (sinon elle serait posee au sol en accroupi).
+        if (action == Action.RIGHT_CLICK_BLOCK && estBlocActionnable(event.getClickedBlock())) {
+            event.setUseInteractedBlock(Event.Result.ALLOW);
+            event.setUseItemInHand(Event.Result.DENY);
+            forcerInteractionAccroupi(event.getPlayer());
+            return;
+        }
 
         event.setCancelled(true);
         Player player = event.getPlayer();
