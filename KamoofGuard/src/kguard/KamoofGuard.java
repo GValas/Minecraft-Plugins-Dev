@@ -42,6 +42,7 @@ public final class KamoofGuard extends JavaPlugin implements Listener {
     private final Set<UUID> verbose = new HashSet<>();
     private Conf conf;
     private File logFile;
+    private TempBan tempBan;
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -61,6 +62,8 @@ public final class KamoofGuard extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new CombatChecks(this), this);
         getServer().getPluginManager().registerEvents(new BlockChecks(this), this);
         getServer().getPluginManager().registerEvents(new MiscChecks(this), this);
+        tempBan = new TempBan(this);
+        getServer().getPluginManager().registerEvents(tempBan, this);
 
         GuardCommand cmd = new GuardCommand(this);
         if (getCommand("kguard") != null) {
@@ -177,7 +180,7 @@ public final class KamoofGuard extends JavaPlugin implements Listener {
                     .replace("%check%", check)
                     .replace("%vl%", String.valueOf((int) vl));
             getLogger().warning("[guard] sanction de " + p.getName() + " (" + check + ", vl " + (int) vl + ") : " + cmd);
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
+            tempBan.dispatchConsole(cmd);
         }
 
         return c.cancel && seuil;
@@ -306,6 +309,8 @@ public final class KamoofGuard extends JavaPlugin implements Listener {
             "",
             "# Interrupteur maitre : tant qu'il est a false, AUCUNE sanction n'est appliquee.",
             "punish: false",
+            "# Un dernier argument de duree (10s, 3m, 2h, 1d, 1w, 1y, insensible a la casse)",
+            "# rend le ban temporaire ; sans lui, /ban reste definitif.",
             "punish-command: \"kick %player% Comportement suspect detecte (%check%)\"",
             "",
             "log:",

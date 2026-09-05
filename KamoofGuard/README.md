@@ -93,6 +93,33 @@ complété par ce que l'API Paper expose aujourd'hui (`getPing`, `getCurrentInpu
 ### Commandes — `/kguard` (alias `/kg`, `/anticheat`)
 `info` · `alerts` · `verbose` · `vl <joueur>` · `top` · `clear <joueur>` · `exempt <joueur>` · `reload`
 
+### Durée sur `/ban` (`TempBan`)
+
+`/ban` accepte une **durée en dernier argument** : `10s`, `3m`, `2h`, `1d`, `1w`, `1y`, ou une
+suite (`1d12h`). Insensible à la casse. **Sans ce dernier argument, le ban reste définitif** —
+le comportement vanilla est inchangé.
+
+```
+/ban Toto                          -> définitif
+/ban Toto triche au combat         -> définitif, raison "triche au combat"
+/ban Toto 10m                      -> 10 minutes
+/ban Toto grief repete 1D12H       -> 36 heures, raison "grief repete"
+```
+
+La commande n'est pas réimplémentée. Le plugin retire seulement l'argument de durée
+(`PlayerCommandPreprocessEvent`, `ServerCommandEvent`, `RemoteServerCommandEvent` pour RCON, et
+`dispatchConsole` pour `punish-command`), laisse le `/ban` vanilla s'exécuter — c'est donc lui qui
+vérifie la permission, résout la cible, expulse le joueur et écrit `banned-players.json` — puis
+pose l'expiration au tick suivant sur l'entrée fraîchement écrite, repérée par sa date de
+création. L'expiration est un champ vanilla (`expires`) : le serveur purge tout seul les bans
+périmés, aucun suivi n'est nécessaire côté plugin.
+
+Conséquences voulues :
+- si le vanilla refuse (permission manquante, joueur inconnu, **joueur déjà banni**), rien n'est
+  modifié — pour changer un ban existant, faire `/pardon` puis rebannir ;
+- un mot de raison qui ressemble à une durée (`/ban Toto grief 3d`) est bien lu comme une durée ;
+- `punish-command` peut donc valoir `ban %player% triche (%check%) 7d`.
+
 ### Permissions
 `kguard.alerts` (op) · `kguard.command` (op) · `kguard.bypass` (personne)
 
