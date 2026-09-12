@@ -5,13 +5,11 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.BanEntry;
 import org.bukkit.BanList;
 import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.event.server.RemoteServerCommandEvent;
-import org.bukkit.event.server.ServerCommandEvent;
+import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -21,25 +19,26 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Duree facultative en dernier argument de /ban : "/ban Toto triche 3d".
+ * /playerban &lt;joueur&gt; [raison...] [duree] : le ban du serveur, avec une duree facultative
+ * en dernier argument ("/playerban Toto triche 3d"). Sans duree, le ban reste definitif.
  *
- * <p>La commande n'est pas reimplementee : on se contente de RETIRER le dernier argument
- * quand c'est une duree, de laisser le /ban vanilla s'executer normalement (c'est donc lui
- * qui verifie la permission, resout la cible, expulse le joueur et ecrit banned-players.json),
- * puis de poser l'expiration sur la ou les entrees qui viennent d'apparaitre dans la liste.
- * Sans duree, rien n'est touche : le ban reste definitif, exactement comme avant.
+ * <p>La commande n'est pas reimplementee : on retire le dernier argument quand c'est une duree,
+ * puis on delegue au /ban vanilla (c'est donc lui qui verifie la permission, resout la cible,
+ * expulse le joueur et ecrit banned-players.json), et on pose l'expiration sur la ou les entrees
+ * qui viennent d'apparaitre dans la liste. Le /ban vanilla reste utilisable tel quel, mais lui
+ * ne connait pas la duree.
  *
  * <p>Le format d'expiration fait partie du vanilla depuis toujours (champ "expires" de
  * banned-players.json) : le serveur purge tout seul les bans perimes a la connexion.
  */
-public final class TempBan implements Listener {
+public final class TempBan implements CommandExecutor, TabCompleter {
 
     /** Un groupe "nombre + unite" ; plusieurs peuvent s'enchainer ("1d12h"). */
     private static final Pattern GROUPE = Pattern.compile("(\\d{1,9})([smhdwy])", Pattern.CASE_INSENSITIVE);
@@ -95,58 +94,50 @@ public final class TempBan implements Listener {
         return ans + (ans > 1 ? " ans" : " an") + (j % 365 != 0 ? " " + (j % 365) + " j" : "");
     }
 
-    // ------------------------------------------------------------------ interception
+    // ------------------------------------------------------------------ la commande
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
-        String reecrit = reecrire(event.getPlayer(), event.getMessage().substring(1));
-        if (reecrit != null) event.setMessage("/" + reecrit);
-    }
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length == 0) return false;          // usage de plugin.yml
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onServerCommand(ServerCommandEvent event) {
-        String reecrit = reecrire(event.getSender(), event.getCommand());
-        if (reecrit != null) event.setCommand(reecrit);
-    }
-
-    /** RCON : sous-classe de ServerCommandEvent, mais avec sa PROPRE liste de handlers. */
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onRemoteCommand(RemoteServerCommandEvent event) {
-        String reecrit = reecrire(event.getSender(), event.getCommand());
-        if (reecrit != null) event.setCommand(reecrit);
-    }
-
-    /**
-     * Console : ni PlayerCommandPreprocessEvent ni ServerCommandEvent ne sont declenches par
-     * Bukkit.dispatchCommand, d'ou ce point d'entree pour la sanction de l'anticheat
-     * (punish-command peut donc valoir "ban %player% triche 7d").
-     */
-    public void dispatchConsole(String commande) {
-        CommandSender console = Bukkit.getConsoleSender();
-        String reecrit = reecrire(console, commande);
-        Bukkit.dispatchCommand(console, reecrit != null ? reecrit : commande);
-    }
-
-    /**
-     * Si `ligne` est un /ban dont le dernier argument est une duree : arme la pose de
-     * l'expiration et renvoie la commande privee de cet argument. Sinon renvoie null
-     * (la commande passe telle quelle).
-     */
-    private String reecrire(CommandSender sender, String ligne) {
-        String[] mots = ligne.trim().split("\\s+");
-        if (mots.length < 3) return null;                    // "ban <cible> <duree>" au minimum
-        String commande = mots[0].toLowerCase(Locale.ROOT);
-        if (!commande.equals("ban") && !commande.equals("minecraft:ban")) return null;
-
-        String token = mots[mots.length - 1];
-        long ms = parseDuree(token);
-        if (ms <= 0) return null;                            // pas de duree -> ban definitif vanilla
+        String[] mots = args;
+        long ms = -1;
+        String token = null;
+        if (args.length >= 2) {
+            String dernier = args[args.length - 1];
+            long parse = parseDuree(dernier);
+            if (parse > 0) {
+                ms = parse;
+                token = dernier;
+                mots = Arrays.copyOf(args, args.length - 1);
+            }
+        }
 
         // Une cible litterale permet de ne toucher qu'elle ; un selecteur (@a, @p...) est
         // resolu par le vanilla, on prendra alors toutes les entrees nouvellement creees.
-        String cible = mots[1].startsWith("@") ? null : mots[1];
-        armer(sender, ms, token, cible);
-        return String.join(" ", Arrays.copyOf(mots, mots.length - 1));
+        if (ms > 0) {
+            String cible = mots[0].startsWith("@") ? null : mots[0];
+            armer(sender, ms, token, cible);
+        }
+
+        // Delegation au /ban vanilla : permission, resolution de la cible, expulsion et
+        // ecriture de banned-players.json restent les siennes.
+        Bukkit.dispatchCommand(sender, "minecraft:ban " + String.join(" ", mots));
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        List<String> out = new ArrayList<>();
+        if (args.length == 1) {
+            String debut = args[0].toLowerCase(Locale.ROOT);
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getName().toLowerCase(Locale.ROOT).startsWith(debut)) out.add(p.getName());
+            }
+        } else if (args.length >= 2 && args[args.length - 1].isEmpty()) {
+            out.addAll(List.of("10m", "1h", "1d", "7d", "30d"));
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------ pose de l'expiration

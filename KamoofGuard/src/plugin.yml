@@ -1,5 +1,5 @@
 name: KamoofGuard
-version: '1.1'
+version: '1.2'
 main: kguard.KamoofGuard
 api-version: '1.21'
 author: Claude
@@ -9,12 +9,19 @@ commands:
     description: Gestion de l'anticheat KamoofGuard
     aliases: [kg, guard, anticheat]
     usage: /kguard <info|alerts|verbose|vl|top|clear|exempt|reload>
+  playerban:
+    description: Bannit un joueur, avec une duree facultative en dernier argument
+    permission: kguard.ban
+    usage: /playerban <joueur> [raison...] [duree 10s|3m|2h|1d|1w|1y|1d12h]
 permissions:
   kguard.alerts:
     description: Recoit les alertes de l'anticheat
     default: op
   kguard.command:
     description: Acces a la commande /kguard
+    default: op
+  kguard.ban:
+    description: Acces a la commande /playerban (le /ban vanilla verifie sa propre permission)
     default: op
   kguard.bypass:
     description: Exempte de tous les checks (a ne donner a personne en temps normal)

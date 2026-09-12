@@ -63,12 +63,15 @@ public final class KamoofGuard extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new BlockChecks(this), this);
         getServer().getPluginManager().registerEvents(new MiscChecks(this), this);
         tempBan = new TempBan(this);
-        getServer().getPluginManager().registerEvents(tempBan, this);
 
         GuardCommand cmd = new GuardCommand(this);
         if (getCommand("kguard") != null) {
             getCommand("kguard").setExecutor(cmd);
             getCommand("kguard").setTabCompleter(cmd);
+        }
+        if (getCommand("playerban") != null) {
+            getCommand("playerban").setExecutor(tempBan);
+            getCommand("playerban").setTabCompleter(tempBan);
         }
 
         for (Player p : Bukkit.getOnlinePlayers()) data(p);
@@ -180,7 +183,8 @@ public final class KamoofGuard extends JavaPlugin implements Listener {
                     .replace("%check%", check)
                     .replace("%vl%", String.valueOf((int) vl));
             getLogger().warning("[guard] sanction de " + p.getName() + " (" + check + ", vl " + (int) vl + ") : " + cmd);
-            tempBan.dispatchConsole(cmd);
+            // punish-command peut valoir "playerban %player% triche (%check%) 7d".
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
         }
 
         return c.cancel && seuil;
@@ -309,8 +313,8 @@ public final class KamoofGuard extends JavaPlugin implements Listener {
             "",
             "# Interrupteur maitre : tant qu'il est a false, AUCUNE sanction n'est appliquee.",
             "punish: false",
-            "# Un dernier argument de duree (10s, 3m, 2h, 1d, 1w, 1y, insensible a la casse)",
-            "# rend le ban temporaire ; sans lui, /ban reste definitif.",
+            "# Avec /playerban, un dernier argument de duree (10s, 3m, 2h, 1d, 1w, 1y, insensible",
+            "# a la casse) rend le ban temporaire ; sans lui, le ban reste definitif.",
             "punish-command: \"kick %player% Comportement suspect detecte (%check%)\"",
             "",
             "log:",
