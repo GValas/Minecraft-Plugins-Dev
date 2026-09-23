@@ -46,6 +46,7 @@ import kamoof.ritual.RitualBook;
 import kamoof.ritual.RitualListener;
 import kamoof.ritual.RitualManager;
 import kamoof.ritual.RitualSetup;
+import kamoof.stasis.StasisAncre;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
@@ -101,6 +102,8 @@ public class KamoofLite extends JavaPlugin implements Listener {
         // Rituel des tetes (feature portee de KamoofSMP S2)
         getServer().getPluginManager().registerEvents(new RitualSetup(), this);
         getServer().getPluginManager().registerEvents(new RitualListener(), this);
+        // Stasis a la canne a peche qui tient a distance / a travers les portails (v3.8)
+        getServer().getPluginManager().registerEvents(new StasisAncre(this), this);
         RitualManager.load(this);
         ecrireDisguises(); // pas de persistance -> etat vide au demarrage
         // La locator bar vanilla (1.21.6+) revele la position des joueurs en bas
