@@ -71,9 +71,9 @@ foreach ($p in $AllPlugins) {
     & $Javac -encoding UTF-8 -cp $ClassPath -d $BuildDir $Sources
     if ($LASTEXITCODE -ne 0) { throw "Echec compilation $Name (code $LASTEXITCODE)" }
 
-    # plugin.yml + ressources (structures NBT) a la racine du jar
+    # plugin.yml + ressources (structures NBT, config.yml par defaut) a la racine du jar
     Copy-Item (Join-Path $SrcDir 'plugin.yml') $BuildDir -Force
-    Get-ChildItem -Path $SrcDir -Filter '*.nbt' -File | Copy-Item -Destination $BuildDir -Force
+    Get-ChildItem -Path $SrcDir -File | Where-Object { $_.Extension -in '.nbt', '.yml' } | Copy-Item -Destination $BuildDir -Force
 
     # Backup de l'ancien jar
     if (Test-Path $OutJar) {

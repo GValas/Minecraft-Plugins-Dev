@@ -55,7 +55,7 @@ for name in "${plugins[@]}"; do
     find "$src_dir" -name '*.java' -print0 | xargs -0 javac -encoding UTF-8 -cp "$CP" -d "$build_dir"
 
     cp "$src_dir/plugin.yml" "$build_dir/"
-    find "$src_dir" -maxdepth 1 -name '*.nbt' -exec cp {} "$build_dir/" \;
+    find "$src_dir" -maxdepth 1 \( -name '*.nbt' -o -name '*.yml' \) -exec cp {} "$build_dir/" \;
 
     if [ -f "$out_jar" ]; then
         stamp="$(date +%Y%m%d-%H%M%S)"

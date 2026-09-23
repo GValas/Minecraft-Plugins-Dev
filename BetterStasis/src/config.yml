@@ -1,0 +1,57 @@
+settings:
+  # Maximum radius to search for ender pearls when binding
+  search-radius: 8.0
+
+  # Minimum distance from player to pearl (prevent instant pickup)
+  min-pearl-distance: 2.0
+
+  # Enable/disable visual and audio feedback
+  feedback:
+    particles: true
+    sounds: true
+    messages: true
+
+  # Rod appearance settings
+  rod-appearance:
+    # When enabled, bound rods show coordinates, lore, and enchantment glint
+    # When disabled, bound rods look like vanilla rods (no visible information)
+    show-information: false
+
+    # When enabled, the fishing rod takes durability damage when teleporting
+    # When disabled, the rod does not take damage (vanilla stasis behavior)
+    use-durability: false
+
+  # Teleportation safety checks
+  teleport:
+    check-safe-location: true
+    prevent-suffocation: true
+    cancel-if-unsafe: true
+
+  # Player binding settings
+  player-binding:
+    # Clear rod binding after successful teleport
+    clear-after-teleport: true
+
+  # Pearl sharing settings
+  pearl-sharing:
+    # Maximum number of players a rod owner can share with
+    max-shared-players: 5
+
+# Economy integration settings (requires Vault)
+economy:
+  # Enable economy features
+  enabled: false
+
+  # Teleport costs
+  teleport:
+    # Base cost for any teleport
+    base-cost: 10.0
+    # Additional cost per block of distance
+    cost-per-block: 0.5
+    # Maximum cost cap
+    max-cost: 1000.0
+
+  # Binding costs
+  binding:
+    # Cost to bind a pearl to a rod
+    cost: 5.0
